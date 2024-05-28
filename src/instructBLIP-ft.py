@@ -6,15 +6,10 @@ import json, argparse, os
 from tqdm import tqdm
 
 from torch.utils.data import DataLoader
-from utils.instructBLIPdataset_2 import CustomVisionDataset
+from utils.instructBLIPdataset import CustomVisionDataset
 
 from dmm import DMM
 from dmm_logits import DMMLogits
-
-
-RESULTS_PATH = '/path/to/results.csv'
-GENERATIONS_PATH = '/path/to/generated_captions.csv'
-BEST_MODEL_PATH = '/path/to/best-model.pt'
 
 class InstructBLIP:
     def __init__(self, config_path):
@@ -54,28 +49,21 @@ class InstructBLIP:
             tuple[dict, dict]: Image vectors, captions in dictionary format, with keys to be the Image IDs.
         """
         # Parse the subsets' paths
-        dataset_captions_path_train = self.parser.parse_args().dataset_captions_path_train
-        dataset_captions_path_valid = self.parser.parse_args().dataset_captions_path_valid
-        dataset_captions_path_test = self.parser.parse_args().dataset_captions_path_test
+        dataset_captions_path_train = self.config["dataset_captions_path_train"]
+        dataset_captions_path_valid = self.config["dataset_captions_path_valid"]
+        dataset_captions_path_test = self.config["dataset_captions_path_test"]
 
         # Load the three subsets into pandas dataframes
         clef_captions_df_train = pd.read_csv(dataset_captions_path_train)
         clef_captions_df_valid = pd.read_csv(dataset_captions_path_valid)
         clef_captions_df_test = pd.read_csv(dataset_captions_path_test)
 
-        # print the training subset's head!
-        print(clef_captions_df_train.head())
-
-        #clef_captions_df_train = clef_captions_df_train.head(20000)
-        clef_captions_df_valid = clef_captions_df_valid.head(3500)
-        clef_captions_df_test = clef_captions_df_test.iloc[2000:3000]
-
         # and now zip them into a dict!
         captions_train = dict( zip( clef_captions_df_train.ID.to_list(), clef_captions_df_train.caption.to_list() ) )
         captions_valid = dict( zip( clef_captions_df_valid.ID.to_list(), clef_captions_df_valid.caption.to_list() ) )
         captions_test = dict( zip( clef_captions_df_test.ID.to_list(), clef_captions_df_test.caption.to_list() ) )
 
-        concept_mapper_path = self.parser.parse_args().dataset_concepts_mapper
+        concept_mapper_path = self.config["dataset_concepts_mapper"]
 
         concepts_mapper = pd.read_csv(concept_mapper_path, sep="\t", header=None, names=['cui', 'concept'])
 
@@ -95,15 +83,11 @@ class InstructBLIP:
             tuple[dict, dict]: Image vectors, captions in dictionary format, with keys to be the Image IDs.
         """
         # get dataset path
-        dataset_concepts_path_test = self.parser.parse_args().dataset_concepts_path_test
+        dataset_concepts_path_test = self.config["dataset_concepts_path_test"]
 
         clef_concepts_df_test = pd.read_csv(dataset_concepts_path_test, sep=',', header=0, names=['ID', 'cuis'])
-
-        print(clef_concepts_df_test.head())
-
-        concepts_test = dict( zip( clef_concepts_df_test.ID.to_list(), clef_concepts_df_test.cuis.to_list() ) )
         
-        return concepts_test
+        return dict( zip( clef_concepts_df_test.ID.to_list(), clef_concepts_df_test.cuis.to_list() ) )
 
 
 
@@ -215,7 +199,7 @@ class InstructBLIP:
                     self.early_stopping_counter = 0
 
                     # save model in order to retrieve at the end...
-                    torch.save(model.state_dict(), BEST_MODEL_PATH)
+                    torch.save(model.state_dict(), self.config["BEST_MODEL_PATH"])
             else:
                     self.early_stopping_counter += 1
 
@@ -245,13 +229,6 @@ class InstructBLIP:
                 image = data[0]
                 caption = data[1]
                 tags = data[2]
-                tt = tags
-                print(type(tt) is tuple)
-                if type(tt) is tuple:
-                    tags = tags[0].split(';')
-                    for i, t in enumerate(tags):
-                        tags[i] = self._concepts_dict[t]
-
 
                 instruction = [instruction_ for i in range(len(caption))]
 
@@ -259,7 +236,7 @@ class InstructBLIP:
 
                 # instantiating a list of LogitsProcessor instances
                 # using our custom ABCLogits class
-                alpha = 0.95
+                alpha = 0.15
                 logits_processor = LogitsProcessorList([DMMLogits(dmm, tags, alpha, tokenizer)])
                 inputs = processor(images=image, text=instruction, return_tensors="pt").to(device)
 
@@ -271,11 +248,11 @@ class InstructBLIP:
                         max_length=120,
                         min_length=5,
                         logits_processor=logits_processor
-                    )
+                        )
 
                 generated_text = processor.batch_decode(outputs, skip_special_tokens=True)
 
-                if _%100==0:
+                if _%500==0:
                     print(f'Completed {_}')
                     
                 predictions.extend(generated_text)
@@ -285,12 +262,6 @@ class InstructBLIP:
 
 
     def main(self):
-        self.TRAIN_BATCH_SIZE = 4   # input batch size for training (default: 64)
-        self.VALID_BATCH_SIZE = 4  # input batch size for testing (default: 1000)
-        self.TEST_BATCH_SIZE = 1
-        TRAIN_EPOCHS = 40       # number of epochs to train (default: 10)
-        VAL_EPOCHS = 1
-        TEST_EPOCHS = 1 
         LEARNING_RATE = 5e-6    # learning rate (default: 0.01)
         SEED = 42               # random seed (default: 42)
         self.epoch_ = -1
@@ -314,12 +285,11 @@ class InstructBLIP:
         # define images path
         self.images_path = self.parser.parse_args().dataset_images_path
 
-        model = InstructBlipForConditionalGeneration.from_pretrained("Salesforce/instructblip-flan-t5-xl")
-        processor = InstructBlipProcessor.from_pretrained("Salesforce/instructblip-flan-t5-xl")
+        model = InstructBlipForConditionalGeneration.from_pretrained(self.config["checkpoint"])
+        processor = InstructBlipProcessor.from_pretrained(self.config["checkpoint"])
 
         # define the instruction to be followed during training
-        #instruction = "Describe the radiology image."
-        instruction = 'You are an experienced radiologist. You are being given radiology images along with a short medical diagnosis. Generate a descriptive caption that highlights the location, nature and severity of the abnormality of the radiology image.'
+        instruction = self.config["instruction"]
 
         self.model = model.to(self.device)
         self.processor = processor
@@ -364,19 +334,19 @@ class InstructBLIP:
 
         # Defining the parameters for creation of dataloaders
         train_params = {
-            'batch_size': self.TRAIN_BATCH_SIZE,
+            'batch_size': self.config["TRAIN_BATCH_SIZE"],
             'shuffle': True,
             'num_workers': 4
         }
 
         val_params = {
-            'batch_size': self.VALID_BATCH_SIZE,
+            'batch_size': self.config["VALID_BATCH_SIZE"],
             'shuffle': False,
             'num_workers': 4
         }
 
         test_params = {
-            'batch_size': self.TEST_BATCH_SIZE,
+            'batch_size': self.config["TEST_BATCH_SIZE"],
             'shuffle': False,
             'num_workers': 4
         }
@@ -390,48 +360,42 @@ class InstructBLIP:
         print('Running InstructBLIP-Flan-T5xl on:', self.device)
 
         # Defining the optimizer that will be used to tune the weights of the network in the training session. 
-        optimizer = torch.optim.Adam(params =  self.model.parameters(), lr=LEARNING_RATE)
+        optimizer = torch.optim.Adam(params =  self.model.parameters(), lr=self.config["lr"])
 
         print('Initiating intruction-based fine-tuning for the model on our dataset')
 
         self.best_loss = 1000000
         self.early_stopping_counter = 0
-        for epoch in tqdm(range(TRAIN_EPOCHS)):
+        for epoch in tqdm(range(self.config["TRAIN_EPOCHS"])):
             self.train(epoch, instruction, self.model, self.processor, self.device, training_loader, optimizer)
             self.validate(epoch, instruction, self.model, self.processor, self.device, val_loader)
 
             # check for early stopping
             print('Early stopping counter:', self.early_stopping_counter)
-            if ((self.early_stopping_counter >= 3) or (epoch == (TRAIN_EPOCHS - 1))):
+            if ((self.early_stopping_counter >= 3) or (epoch == (self.config["TRAIN_EPOCHS"] - 1))):
 
                 del self.model
                 del model
                 del optimizer
 
-                model_path = BEST_MODEL_PATH
-                model = InstructBlipForConditionalGeneration.from_pretrained("Salesforce/instructblip-flan-t5-xl")
+                model_path = self.config["BEST_MODEL_PATH"]
+                model = InstructBlipForConditionalGeneration.from_pretrained(self.config["checkpoint"])
                 state_dict = torch.load(model_path, map_location = 'cpu')
                 model.load_state_dict(state_dict)
                 best_model = model.to(self.device)
                 break
 
         print('Now generating summaries on our fine tuned model for the test dataset and saving it in a dataframe')
+
         tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-xl")
-        for epoch in range(TEST_EPOCHS):
-            #predictions, actuals = self.test(epoch, self.tokenizer, best_model, self.processor, self.device, test_loader)
+
+        for epoch in range(self.config["TEST_EPOCHS"]):
             predictions, actuals = self.test(epoch, instruction, best_model, self.processor, self.device, test_loader, self.hist_file_path, self.mmc_sim_file_path, tokenizer)
 
-            print('predictions:', predictions)
-            print('actuals:', actuals)
-
-            with open(RESULTS_PATH, 'w') as out_test:
+            with open(self.config["RESULTS_PATH"], 'w') as out_test:
                 for i, pred in enumerate(predictions):
                     out_test.write(test_ids[i] + '|' + pred + '\n')
             print('Results saved!')
-
-            final_df = pd.DataFrame({'Generated Text':predictions,'Actual Text':actuals})
-            final_df.to_csv(GENERATIONS_PATH)
-            print('Output Files generated for review')
 
 
 if __name__ == '__main__':
