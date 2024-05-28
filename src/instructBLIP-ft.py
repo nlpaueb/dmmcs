@@ -1,29 +1,12 @@
-from transformers import InstructBlipProcessor, InstructBlipForConditionalGeneration, AutoTokenizer, LogitsProcessorList, PhrasalConstraint
+from transformers import InstructBlipProcessor, InstructBlipForConditionalGeneration, AutoTokenizer, LogitsProcessorList
 import torch
-from PIL import Image
-import requests
-
 import numpy as np
 import pandas as pd
-import json
-import copy
 import argparse, os
 from tqdm import tqdm
 
 from torch.utils.data import DataLoader
-
-import nltk
-from nltk.corpus import stopwords
-nltk.download('stopwords')
-from nltk.tokenize import word_tokenize
-
 from utils.instructBLIPdataset_2 import CustomVisionDataset
-
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-from sklearn import preprocessing
-from sklearn.preprocessing import label_binarize
-
-from torch.cuda.amp import autocast, GradScaler
 
 from dmm import DMM
 from dmm_logits import DMMLogits
