@@ -1,0 +1,14 @@
+{
+    "dataset_name": "imageclef",
+    "dataset_images_path": "/path/to/dataset/images/folder/",
+    "dataset_captions_path_train": "/path/to/dataset/training/captions/csv/file",
+    "dataset_captions_path_valid": "/path/to/dataset/validation/captions/csv/file",
+    "dataset_captions_path_test": "/path/to/dataset/test/captions/csv/file",
+    "dataset_concepts_path_test": "/path/to/dataset/test/tags/csv/file",
+    "dataset_concepts_mapper": "/path/to/concept/mapper/csv/file",
+    "max_length": 80,
+    "n_gpu": 1,
+    "num_workers": 2,
+    "batch_size": 16
+  }
+  

@@ -2,7 +2,7 @@ from transformers import InstructBlipProcessor, InstructBlipForConditionalGenera
 import torch
 import numpy as np
 import pandas as pd
-import argparse, os
+import json, argparse, os
 from tqdm import tqdm
 
 from torch.utils.data import DataLoader
@@ -17,41 +17,21 @@ GENERATIONS_PATH = '/path/to/generated_captions.csv'
 BEST_MODEL_PATH = '/path/to/best-model.pt'
 
 class InstructBLIP:
+    def __init__(self, config_path):
+        # Load configurations from a JSON file
+        self.load_config(config_path)
 
-    def __init__(self):
+        n_gpu = self.config.get('n_gpu', 1)
+        self.device = "cuda:7" if n_gpu > 0 else "cpu"
 
-        # fetch user cmd selections
-        self.parser = argparse.ArgumentParser()
-        self.parse_agrs()
+    def load_config(self, config_path):
+        """ Load all arguments from a JSON configuration file """
+        with open(config_path, 'r') as f:
+            self.config = json.load(f)
 
-        n_gpu = self.parser.parse_args().n_gpu
-        self.device = "cuda:7"
-
-    def parse_agrs(self) -> None:
-        """ Parse all arguments selected in execution from the user
-        """
-        parser = argparse.ArgumentParser()
-
-        # Data loader settings
-        self.parser.add_argument("--dataset_name", type=str, default="imageclef", choices=["iu_xray", "imageclef"], help="the dataset to be used.")
-
-        self.parser.add_argument("--dataset_images_path", type=str, default="/path/to/dataset/images/folder/")
-        self.parser.add_argument("--dataset_captions_path_train", type=str, default="/path/to/dataset/training/captions/csv/file")
-        self.parser.add_argument("--dataset_captions_path_valid", type=str, default="/path/to/dataset/validation/captions/csv/file")
-        self.parser.add_argument("--dataset_captions_path_test", type=str, default="/path/to/dataset/test/captions/csv/file")
-
-        self.parser.add_argument("--dataset_concepts_path_test", type=str, default="/path/to/dataset/test/tags/csv/file")
-        self.parser.add_argument("--dataset_concepts_mapper", type=str, default="/path/to/concept/mapper/csv/file")
-        
-        # Captions settings
-        self.parser.add_argument("--max_length", type=int, default=80, help="the maximum sequence length of the reports.")
-        self.parser.add_argument('--n_gpu', type=int, default=1, help='the number of gpus to be used.')
-
-        self.parser.add_argument('--num_workers', type=int, default=2, help='the number of workers for dataloader.')
-        self.parser.add_argument('--batch_size', type=int, default=16, help='the number of samples for a batch')
-
-        args = self.parser.parse_args()
-        return args
+    def parse_args(self) -> None:
+        """ Dummy method to keep consistency if needed elsewhere """
+        pass
     
     def _prepare_device(self, n_gpu_use):
         n_gpu = torch.cuda.device_count()
@@ -457,6 +437,9 @@ class InstructBLIP:
 if __name__ == '__main__':
     # define tokenizer
 
-    instruct_blip = InstructBLIP()
+    parser = argparse.ArgumentParser(description="Script to run InstructBLIP with JSON config.")
+    parser.add_argument('--config', type=str, required=True, help='Path to the JSON configuration file.')
+    args = parser.parse_args()
 
-    instruct_blip.main()
+    # Instantiate InstructBLIP with the provided config file
+    instruct_blip = InstructBLIP(args.config)
