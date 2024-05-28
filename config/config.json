@@ -9,6 +9,16 @@
     "max_length": 80,
     "n_gpu": 1,
     "num_workers": 2,
-    "batch_size": 16
+    "batch_size": 16,
+    "RESULTS_PATH": "/path/to/results.csv",
+    "BEST_MODEL_PATH": "/path/to/best-model.pt",
+    "TRAIN_BATCH_SIZE": 4,
+    "VALID_BATCH_SIZE": 4,
+    "TEST_BATCH_SIZE": 1,
+    "TRAIN_EPOCHS": 5,
+    "TEST_EPOCHS": 1,
+    "lr": 1e-4,
+    "instruction": "You are an experienced radiologist. You are being given radiology images along with a short medical diagnosis. Generate a descriptive caption that highlights the location, nature and severity of the abnormality of the radiology image.",
+    "checkpoint:": "Salesforce/instructblip-flan-t5-xl"
   }
   
