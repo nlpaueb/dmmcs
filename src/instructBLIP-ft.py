@@ -2,9 +2,10 @@ from transformers import InstructBlipProcessor, InstructBlipForConditionalGenera
 import torch
 import numpy as np
 import pandas as pd
-import json, argparse, os
+import json, argparse, os, sys
 from tqdm import tqdm
 
+sys.path.append("../")
 from torch.utils.data import DataLoader
 from utils.instructBLIPdataset import CustomVisionDataset
 
@@ -17,7 +18,7 @@ class InstructBLIP:
         self.load_config(config_path)
 
         n_gpu = self.config.get('n_gpu', 1)
-        self.device = "cuda:7" if n_gpu > 0 else "cpu"
+        self.device = f"cuda:{str(self.config['cuda_nr'])}" if n_gpu > 0 else "cpu"
 
     def load_config(self, config_path):
         """ Load all arguments from a JSON configuration file """
@@ -27,20 +28,6 @@ class InstructBLIP:
     def parse_args(self) -> None:
         """ Dummy method to keep consistency if needed elsewhere """
         pass
-    
-    def _prepare_device(self, n_gpu_use):
-        n_gpu = torch.cuda.device_count()
-        if n_gpu_use > 0 and n_gpu == 0:
-            print("Warning: There\'s no GPU available on this machine," "training will be performed on CPU.")
-            n_gpu_use = 0
-        if n_gpu_use > n_gpu:
-            print(
-                "Warning: The number of GPU\'s configured to use is {}, but only {} are available " "on this machine.".format(
-                    n_gpu_use, n_gpu))
-            n_gpu_use = n_gpu
-        device = torch.device('cuda:7' if n_gpu_use > 0 else 'cpu')
-        list_ids = list(range(n_gpu_use))
-        return device, list_ids
 
     def load_imageclef_data(self) -> dict:
         """ Loads ImageCLEF dataset from directory
@@ -48,30 +35,22 @@ class InstructBLIP:
         Returns:
             tuple[dict, dict]: Image vectors, captions in dictionary format, with keys to be the Image IDs.
         """
-        # Parse the subsets' paths
-        dataset_captions_path_train = self.config["dataset_captions_path_train"]
-        dataset_captions_path_valid = self.config["dataset_captions_path_valid"]
-        dataset_captions_path_test = self.config["dataset_captions_path_test"]
 
         # Load the three subsets into pandas dataframes
-        clef_captions_df_train = pd.read_csv(dataset_captions_path_train)
-        clef_captions_df_valid = pd.read_csv(dataset_captions_path_valid)
-        clef_captions_df_test = pd.read_csv(dataset_captions_path_test)
+        clef_captions_df_train = pd.read_csv(self.config["dataset_captions_path_train"])
+        clef_captions_df_valid = pd.read_csv(self.config["dataset_captions_path_valid"])
+        clef_captions_df_test = pd.read_csv(self.config["dataset_captions_path_test"])
 
         # and now zip them into a dict!
         captions_train = dict( zip( clef_captions_df_train.ID.to_list(), clef_captions_df_train.caption.to_list() ) )
         captions_valid = dict( zip( clef_captions_df_valid.ID.to_list(), clef_captions_df_valid.caption.to_list() ) )
         captions_test = dict( zip( clef_captions_df_test.ID.to_list(), clef_captions_df_test.caption.to_list() ) )
 
-        concept_mapper_path = self.config["dataset_concepts_mapper"]
-
-        concepts_mapper = pd.read_csv(concept_mapper_path, sep="\t", header=None, names=['cui', 'concept'])
+        concepts_mapper = pd.read_csv(self.config["dataset_concepts_mapper"], sep="\t", header=None, names=['cui', 'concept'])
 
         # Build a mapper
-        self._concepts_dict = {}
-        for row in concepts_mapper['concept']:
-            mapper = concepts_mapper.loc[concepts_mapper['concept'] == row].values.flatten().tolist()
-            self._concepts_dict[mapper[0]] = mapper[1]
+        self._concepts_dict = {row['cui']: row['concept'] for _, row in concepts_mapper.iterrows()}
+
         
         return captions_train, captions_valid, captions_test
 
@@ -85,11 +64,9 @@ class InstructBLIP:
         # get dataset path
         dataset_concepts_path_test = self.config["dataset_concepts_path_test"]
 
-        clef_concepts_df_test = pd.read_csv(dataset_concepts_path_test, sep=',', header=0, names=['ID', 'cuis'])
+        clef_concepts_df_test = pd.read_csv(dataset_concepts_path_test, sep='\t', header=0, names=['ID', 'cuis'])
         
         return dict( zip( clef_concepts_df_test.ID.to_list(), clef_concepts_df_test.cuis.to_list() ) )
-
-
 
     def split_data(self, captions_train:dict, captions_valid:dict, captions_test:dict):
 
@@ -282,9 +259,6 @@ class InstructBLIP:
         # load the captions individually
         train_labels, dev_labels, test_labels = self.split_(captions_train, captions_valid, captions_test)
 
-        # define images path
-        self.images_path = self.parser.parse_args().dataset_images_path
-
         model = InstructBlipForConditionalGeneration.from_pretrained(self.config["checkpoint"])
         processor = InstructBlipProcessor.from_pretrained(self.config["checkpoint"])
 
@@ -325,9 +299,9 @@ class InstructBLIP:
 
         _ = list()
 
-        self.train_dataset = CustomVisionDataset(captions_train, train_ids, _, processor, 'train')
-        self.val_dataset = CustomVisionDataset(captions_valid, dev_ids, _, processor, 'validation')
-        self.test_dataset = CustomVisionDataset(captions_test, test_ids, tags_test, processor, 'test')
+        self.train_dataset = CustomVisionDataset(captions_train, train_ids, _, self.config["dataset_images_path"], 'train')
+        self.val_dataset = CustomVisionDataset(captions_valid, dev_ids, _, self.config["dataset_images_path"], 'validation')
+        self.test_dataset = CustomVisionDataset(captions_test, test_ids, tags_test, self.config["dataset_images_path"], 'test')
 
         self.hist_file_path = '/path/to/hist_train.pkl'
         self.mmc_sim_file_path = 'path/to/median_max_cos_c.pkl'
@@ -407,3 +381,6 @@ if __name__ == '__main__':
 
     # Instantiate InstructBLIP with the provided config file
     instruct_blip = InstructBLIP(args.config)
+
+    # Run!
+    instruct_blip.main()

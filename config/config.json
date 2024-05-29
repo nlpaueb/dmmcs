@@ -19,6 +19,7 @@
     "TEST_EPOCHS": 1,
     "lr": 1e-4,
     "instruction": "You are an experienced radiologist. You are being given radiology images along with a short medical diagnosis. Generate a descriptive caption that highlights the location, nature and severity of the abnormality of the radiology image.",
-    "checkpoint:": "Salesforce/instructblip-flan-t5-xl"
+    "checkpoint:": "Salesforce/instructblip-flan-t5-xl",
+    "cuda_nr": 7
   }
   
