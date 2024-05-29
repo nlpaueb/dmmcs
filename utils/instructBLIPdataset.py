@@ -10,13 +10,15 @@ import os
 
 class CustomVisionDataset(torch.utils.data.Dataset):
 
-    def __init__(self, dataframe, ids, img_path, mode:str):
+    def __init__(self, dataframe, ids, tags_test, dataset_images_path, mode:str):
         
+        self.mode = mode
         self.data = dataframe
+        self.tags_data = tags_test
         self.ids = ids
         self.image_processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224-in21k")
+        self.dataset_images_path = dataset_images_path
         self.dict_keys = list(self.data.keys())
-        self.dataset_images_path = img_path
         normalize = Normalize(mean=self.image_processor.image_mean, std=self.image_processor.image_std)
 
         # -------------------------------------------------------------------------------
@@ -24,7 +26,6 @@ class CustomVisionDataset(torch.utils.data.Dataset):
         if mode == 'train':
            self._transforms = transforms.Compose([
                                     transforms.RandomRotation(30),
-                                    #transforms.ToTensor(),
                                     transforms.Resize((224, 224)),
                                     transforms.ToTensor()])
                             
@@ -53,13 +54,15 @@ class CustomVisionDataset(torch.utils.data.Dataset):
 
         caption = self.data[self.dict_keys[index]]
 
+        if self.mode == 'test':
+            tags = self.tags_data[self.dict_keys[index] + ".jpg"]
+
         image = Image.open(os.path.join(data_dir, self.ids[index] + '.jpg'))
         image = image.convert('RGB')
         image = self._transforms(image)
-
-        #image = self.image_processor(image, return_tensors="pt").pixel_values
-        #print('img:', image)
-        #image = torch.tensor(image)
-        #print('image type:', type(image))
         
-        return image, caption, self.ids[index]
+        
+        if self.mode == 'test':
+            return image, caption, tags, self.ids[index]
+        else:
+            return image, caption, self.ids[index]
