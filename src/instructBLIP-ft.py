@@ -4,10 +4,18 @@ import numpy as np
 import pandas as pd
 import json, argparse, os, sys
 from tqdm import tqdm
+import logging
 
 sys.path.append("../")
 from torch.utils.data import DataLoader
 from utils.instructBLIPdataset import CustomVisionDataset
+from utils.utilities import (
+    set_logger,
+    split_,
+    split_data,
+    load_tags_data,
+    load_imageclef_data
+)
 
 from dmm import DMM
 from dmm_logits import DMMLogits
@@ -20,6 +28,8 @@ class InstructBLIP:
         n_gpu = self.config.get('n_gpu', 1)
         self.device = f"cuda:{str(self.config['cuda_nr'])}" if n_gpu > 0 else "cpu"
 
+        set_logger("../snapshots/logs/", "train.log", self.config["logging"]["print_on_screen"])
+
     def load_config(self, config_path):
         """ Load all arguments from a JSON configuration file """
         with open(config_path, 'r') as f:
@@ -29,69 +39,6 @@ class InstructBLIP:
         """ Dummy method to keep consistency if needed elsewhere """
         pass
 
-    def load_imageclef_data(self) -> dict:
-        """ Loads ImageCLEF dataset from directory
-
-        Returns:
-            tuple[dict, dict]: Image vectors, captions in dictionary format, with keys to be the Image IDs.
-        """
-
-        # Load the three subsets into pandas dataframes
-        clef_captions_df_train = pd.read_csv(self.config["dataset_captions_path_train"])
-        clef_captions_df_valid = pd.read_csv(self.config["dataset_captions_path_valid"])
-        clef_captions_df_test = pd.read_csv(self.config["dataset_captions_path_test"])
-
-        # and now zip them into a dict!
-        captions_train = dict( zip( clef_captions_df_train.ID.to_list(), clef_captions_df_train.caption.to_list() ) )
-        captions_valid = dict( zip( clef_captions_df_valid.ID.to_list(), clef_captions_df_valid.caption.to_list() ) )
-        captions_test = dict( zip( clef_captions_df_test.ID.to_list(), clef_captions_df_test.caption.to_list() ) )
-
-        concepts_mapper = pd.read_csv(self.config["dataset_concepts_mapper"], sep="\t", header=None, names=['cui', 'concept'])
-
-        # Build a mapper
-        self._concepts_dict = {row['cui']: row['concept'] for _, row in concepts_mapper.iterrows()}
-
-        
-        return captions_train, captions_valid, captions_test
-
-    
-    def load_tags_data(self) -> dict:
-        """ Loads ImageCLEF dataset from directory
-
-        Returns:
-            tuple[dict, dict]: Image vectors, captions in dictionary format, with keys to be the Image IDs.
-        """
-        # get dataset path
-        dataset_concepts_path_test = self.config["dataset_concepts_path_test"]
-
-        clef_concepts_df_test = pd.read_csv(dataset_concepts_path_test, sep='\t', header=0, names=['ID', 'cuis'])
-        
-        return dict( zip( clef_concepts_df_test.ID.to_list(), clef_concepts_df_test.cuis.to_list() ) )
-
-    def split_data(self, captions_train:dict, captions_valid:dict, captions_test:dict):
-
-        train_ids = list(captions_train.keys())
-        dev_ids = list(captions_valid.keys())
-        test_ids = list(captions_test.keys())
-
-        return train_ids, dev_ids, test_ids
-
-
-    def split_(self, dict_to_split_train:dict, dict_to_split_val:dict, dict_to_split_test:dict):
-
-        train, dev, test = list(), list(), list()
-        for k in dict_to_split_train.keys():
-            train.append((dict_to_split_train[k].split(';')))
-        
-        for k in dict_to_split_val.keys():
-            dev.append((dict_to_split_val[k].split(';')))
-
-        for k in dict_to_split_test.keys():
-            test.append((dict_to_split_test[k].split(';')))
-                
-        return train, dev, test
-
-    
     # Creating the training function. This will be called in the main function. It is run depending on the epoch value.
     # The model is put into train mode and then we wnumerate over the training loader and passed to the defined network
     def train(self, epoch, instruction_, model, processor, device, loader, optimizer):
@@ -122,7 +69,7 @@ class InstructBLIP:
             running_loss += loss.item()
 
             if _%500==0:
-                print(f'Epoch: {epoch}, Loss:  {loss.item()}')
+                logging.info(f'Epoch: {epoch}, Loss:  {loss.item()}')
             
             optimizer.zero_grad()
             loss.backward()
@@ -133,7 +80,7 @@ class InstructBLIP:
             
 
         epoch_loss = running_loss / batch_counter
-        print(f'Epoch: {epoch}, Loss:  {epoch_loss}, Batch Counter: {batch_counter}')
+        logging.info(f'Epoch: {epoch}, Loss:  {epoch_loss}, Batch Counter: {batch_counter}')
 
 
     def validate(self, epoch, instruction_, model, processor, device, loader):
@@ -170,7 +117,7 @@ class InstructBLIP:
                 
 
             epoch_val_loss = running_val_loss / val_batch_counter
-            print(f'Epoch: {epoch}, Validation Loss:  {epoch_val_loss}, Batch Counter: {val_batch_counter}')
+            logging.info(f'Epoch: {epoch}, Validation Loss:  {epoch_val_loss}, Batch Counter: {val_batch_counter}')
             if (epoch_val_loss < self.best_loss):
                     self.best_loss = epoch_val_loss
                     self.early_stopping_counter = 0
@@ -180,26 +127,14 @@ class InstructBLIP:
             else:
                     self.early_stopping_counter += 1
 
-    def is_subset(self, lst1, lst2):
-        return set(lst1).issubset(set(lst2))
-
-    def remove_subsets(self, list_of_lists):
-        result = []
-        for i, inner_list in enumerate(list_of_lists):
-            is_subset_of_any = False
-            for j, other_list in enumerate(list_of_lists):
-                if i != j and self.is_subset(inner_list, other_list):
-                    is_subset_of_any = True
-                    break
-            if not is_subset_of_any:
-                result.append(inner_list)
-        return result
+    
 
     
-    def test(self, epoch, instruction_, model, processor, device, loader, hist_file_path, mmc_sim_file_path, tokenizer):
+    def test(self, instruction_, model, processor, device, loader, hist_file_path, mmc_sim_file_path, tokenizer):
+
         model.eval()
-        predictions = []
-        actuals = []
+        predictions, actuals = [], []
+
         with torch.no_grad():
             for _, data in tqdm(enumerate(loader, 0)):
 
@@ -209,28 +144,30 @@ class InstructBLIP:
 
                 instruction = [instruction_ for i in range(len(caption))]
 
-                dmm = DMM(hist_train_file=hist_file_path, mmc_sim_file=mmc_sim_file_path)
-
-                # instantiating a list of LogitsProcessor instances
-                # using our custom ABCLogits class
-                alpha = 0.15
-                logits_processor = LogitsProcessorList([DMMLogits(dmm, tags, alpha, tokenizer)])
                 inputs = processor(images=image, text=instruction, return_tensors="pt").to(device)
 
+                generation_params = self.config["generation_params"]
 
-                outputs = model.generate(
-                        **inputs,
-                        do_sample=False,
-                        num_beams=5,
-                        max_length=120,
-                        min_length=5,
-                        logits_processor=logits_processor
-                        )
+                if self.config["dmmcs_params"]["do_dmmcs"]:
+
+                    dmm = DMM(hist_train_file=hist_file_path,
+                              mmc_sim_file=mmc_sim_file_path,
+                              word_index_file=self.config["word_index_path"],
+                              embedding_matrix_file=self.config["embedding_matrix_path"])
+
+                    # instantiating a list of LogitsProcessor instances
+                    # using our custom ABCLogits class
+                    alpha = self.config["dmmcs_params"]["alpha"]
+                    logits_processor = LogitsProcessorList([DMMLogits(dmm, tags, alpha, tokenizer)])
+
+                    generation_params["logits_processor"] = logits_processor
+                
+                outputs = model.generate(**inputs, **generation_params)
 
                 generated_text = processor.batch_decode(outputs, skip_special_tokens=True)
 
                 if _%500==0:
-                    print(f'Completed {_}')
+                    logging.info(f'Completed inference on {str(_)} test instances.')
                     
                 predictions.extend(generated_text)
                 actuals.extend(caption)
@@ -239,35 +176,37 @@ class InstructBLIP:
 
 
     def main(self):
-        LEARNING_RATE = 5e-6    # learning rate (default: 0.01)
-        SEED = 42               # random seed (default: 42)
-        self.epoch_ = -1
 
         # Set random seeds and deterministic pytorch for reproducibility
-        torch.manual_seed(SEED) # pytorch random seed
-        np.random.seed(SEED) # numpy random seed
-        #torch.backends.cudnn.deterministic = True
+        torch.manual_seed(self.config["seed"]) # pytorch random seed
+        np.random.seed(self.config["seed"]) # numpy random seed
 
         # load data in pandas dataframe form
-        captions_train, captions_valid, captions_test = self.load_imageclef_data()
+        captions_train, captions_valid, captions_test, self._concepts_dict =    load_imageclef_data(
+                                                                                  self.config["dataset_captions_path_train"],
+                                                                                  self.config["dataset_captions_path_valid"],
+                                                                                  self.config["dataset_captions_path_test"],
+                                                                                  self.config["dataset_concepts_mapper"]
+                                                                                )
 
         # load image ids individually
-        train_ids, dev_ids, test_ids = self.split_data(captions_train, captions_valid, captions_test)
+        train_ids, dev_ids, test_ids = split_data(captions_train, captions_valid, captions_test)
 
-        tags_test = self.load_tags_data()
+        tags_test = load_tags_data(self.config["dataset_concepts_path_test"])
 
         # load the captions individually
-        train_labels, dev_labels, test_labels = self.split_(captions_train, captions_valid, captions_test)
+        train_labels, dev_labels, test_labels = split_(captions_train, captions_valid, captions_test)
 
-        model = InstructBlipForConditionalGeneration.from_pretrained(self.config["checkpoint"])
-        processor = InstructBlipProcessor.from_pretrained(self.config["checkpoint"])
+        model = InstructBlipForConditionalGeneration.from_pretrained(self.config["train_params"]["checkpoint"])
+        processor = InstructBlipProcessor.from_pretrained(self.config["train_params"]["checkpoint"])
 
         # define the instruction to be followed during training
-        instruction = self.config["instruction"]
+        instruction = self.config["train_params"]["instruction"]
 
         self.model = model.to(self.device)
         self.processor = processor
         
+        # Freeze some of the model's parameters in order to meet memory constraints -- adjust accordingly!
         for i, param in enumerate(self.model.vision_model.encoder.layers.parameters()):
             param.requires_grad = False
 
@@ -294,35 +233,30 @@ class InstructBLIP:
             else:
                 false_ += 1
             
-        print('Require grad:', true_)
-        print('Frozen:', false_)
+        logging.info(f'Trainable model weights: {str(true_)}')
+        logging.info(f'Frozen model weights: {str(false_)}')
 
-        _ = list()
-
-        self.train_dataset = CustomVisionDataset(captions_train, train_ids, _, self.config["dataset_images_path"], 'train')
-        self.val_dataset = CustomVisionDataset(captions_valid, dev_ids, _, self.config["dataset_images_path"], 'validation')
+        self.train_dataset = CustomVisionDataset(captions_train, train_ids, list(), self.config["dataset_images_path"], 'train')
+        self.val_dataset = CustomVisionDataset(captions_valid, dev_ids, list(), self.config["dataset_images_path"], 'validation')
         self.test_dataset = CustomVisionDataset(captions_test, test_ids, tags_test, self.config["dataset_images_path"], 'test')
-
-        self.hist_file_path = '/path/to/hist_train.pkl'
-        self.mmc_sim_file_path = 'path/to/median_max_cos_c.pkl'
 
         # Defining the parameters for creation of dataloaders
         train_params = {
-            'batch_size': self.config["TRAIN_BATCH_SIZE"],
+            'batch_size': self.config["train_params"]["TRAIN_BATCH_SIZE"],
             'shuffle': True,
-            'num_workers': 4
+            'num_workers': self.config["num_workers_train"]
         }
 
         val_params = {
-            'batch_size': self.config["VALID_BATCH_SIZE"],
+            'batch_size': self.config["train_params"]["VALID_BATCH_SIZE"],
             'shuffle': False,
-            'num_workers': 4
+            'num_workers': self.config["num_workers_val"]
         }
 
         test_params = {
-            'batch_size': self.config["TEST_BATCH_SIZE"],
+            'batch_size': self.config["train_params"]["TEST_BATCH_SIZE"],
             'shuffle': False,
-            'num_workers': 4
+            'num_workers': self.config["num_workers_test"]
         }
 
 
@@ -331,45 +265,42 @@ class InstructBLIP:
         val_loader = DataLoader(self.val_dataset, **val_params)
         test_loader = DataLoader(self.test_dataset, **test_params)
 
-        print('Running InstructBLIP-Flan-T5xl on:', self.device)
+        logging.info(f"Running {self.config['train_params']['checkpoint']} on: {str(self.device)}")
 
         # Defining the optimizer that will be used to tune the weights of the network in the training session. 
-        optimizer = torch.optim.Adam(params =  self.model.parameters(), lr=self.config["lr"])
+        optimizer = torch.optim.Adam(params =  self.model.parameters(), lr=self.config["train_params"]["lr"])
 
-        print('Initiating intruction-based fine-tuning for the model on our dataset')
+        logging.info('Initiating instruction-based fine-tuning for the model on our dataset...')
 
         self.best_loss = 1000000
         self.early_stopping_counter = 0
-        for epoch in tqdm(range(self.config["TRAIN_EPOCHS"])):
-            self.train(epoch, instruction, self.model, self.processor, self.device, training_loader, optimizer)
-            self.validate(epoch, instruction, self.model, self.processor, self.device, val_loader)
+        if self.config["train_params"]["do_train"]:
+            for epoch in tqdm(range(self.config["train_params"]["TRAIN_EPOCHS"])):
+                self.train(epoch, instruction, self.model, self.processor, self.device, training_loader, optimizer)
+                self.validate(epoch, instruction, self.model, self.processor, self.device, val_loader)
 
-            # check for early stopping
-            print('Early stopping counter:', self.early_stopping_counter)
-            if ((self.early_stopping_counter >= 3) or (epoch == (self.config["TRAIN_EPOCHS"] - 1))):
+                # check for early stopping
+                if ((self.early_stopping_counter >= self.config["train_params"]["early_stopping_threshold"]) or (epoch == (self.config["TRAIN_EPOCHS"] - 1))):
 
-                del self.model
-                del model
-                del optimizer
+                    # delete existing instances in order to deal with potential memory issues
+                    del self.model, model, optimizer
 
-                model_path = self.config["BEST_MODEL_PATH"]
-                model = InstructBlipForConditionalGeneration.from_pretrained(self.config["checkpoint"])
-                state_dict = torch.load(model_path, map_location = 'cpu')
-                model.load_state_dict(state_dict)
-                best_model = model.to(self.device)
-                break
+                    model = InstructBlipForConditionalGeneration.from_pretrained(self.config["train_params"]["checkpoint"])
+                    state_dict = torch.load(self.config["BEST_MODEL_PATH"], map_location = 'cpu')
+                    model.load_state_dict(state_dict)
+                    model = model.to(self.device)
+                    break
 
-        print('Now generating summaries on our fine tuned model for the test dataset and saving it in a dataframe')
+        logging.info('Now generating summaries on our fine tuned model for the test dataset and saving it in a dataframe')
 
         tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-xl")
 
-        for epoch in range(self.config["TEST_EPOCHS"]):
-            predictions, actuals = self.test(epoch, instruction, best_model, self.processor, self.device, test_loader, self.hist_file_path, self.mmc_sim_file_path, tokenizer)
+        predictions, actuals = self.test(instruction, model, self.processor, self.device, test_loader, self.config["hist_file_path"], self.config["mmc_sim_file_path"], tokenizer)
 
-            with open(self.config["RESULTS_PATH"], 'w') as out_test:
-                for i, pred in enumerate(predictions):
-                    out_test.write(test_ids[i] + '|' + pred + '\n')
-            print('Results saved!')
+        with open(self.config["RESULTS_PATH"], 'w') as out_test:
+            for i, pred in enumerate(predictions):
+                out_test.write(test_ids[i] + '|' + pred + '\n')
+        logging.info('Results saved!')
 
 
 if __name__ == '__main__':
