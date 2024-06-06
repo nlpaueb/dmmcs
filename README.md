@@ -9,7 +9,7 @@ If you would like to use our work, please cite us using the following bibtex ref
 @inproceedings{dmmcs,
   title={A data-driven guided decoding mechanism for Diagnostic Captioning},
   author={Panagiotis Kaliosis and John Pavlopoulos and Foivos Charalampakos and Georgios Moschovis and Ion Androutsopoulos},
-  booktitle={Findings of the Association for Computational Linguistics: ACL 2024},
-  year={2024}
+  booktitle={The 62nd Annual Meeting of the Association for Computational Linguistics},
+  year={2024},
 }
 ```
