@@ -3,13 +3,13 @@ Distance from Median Maximum Cosine Similarity *(DMMCS)*
 
 This repo contains the codebase for DMMCS, our novel data-driven guided decoding algorithm featured in ACL Findings 2024.
 
-If you use our work, please make sure to cite it:
+If you would like to use our work, please cite us using the following bibtex reference:
 
 ```
-@inproceedings{dmmcs-acl2024,
+@inproceedings{dmmcs,
   title={A data-driven guided decoding mechanism for Diagnostic Captioning},
   author={Panagiotis Kaliosis and John Pavlopoulos and Foivos Charalampakos and Georgios Moschovis and Ion Androutsopoulos},
-  booktitle={Findings of the Association for Computational Linguistics: ACL 2024},
-  year={2024}
+  booktitle={The 62nd Annual Meeting of the Association for Computational Linguistics},
+  year={2024},
 }
 ```
