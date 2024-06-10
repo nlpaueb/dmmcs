@@ -54,8 +54,7 @@ class DMMLogits(LogitsProcessor):
         # snt_component = (1-self.alpha) * hist_conf[beam_index] * (-1*beam_scores) --> previous form of the dmmcs type
         lm_component = (1-self.alpha) * (-1*beam_scores)
 
-        lm _component = self.normalize_lm(lm_component)
-        print('------------------------------------------') # for visualization purposes
+        lm_component = self.normalize_lm(lm_component)
 
         final_scores_tensor = -1 * (dmm_component + lm_component)
 

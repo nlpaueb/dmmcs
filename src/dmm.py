@@ -7,9 +7,12 @@ from numpy.linalg import norm
 import math
 import torch 
 
+import warnings
+warnings.filterwarnings('ignore')
+
 class DMM:
 
-    def __init__(self, hist_train_file:str, mmc_sim_file:str):
+    def __init__(self, hist_train_file:str, mmc_sim_file:str, word_index_file:str, embedding_matrix_file:str):
         """ The DMM sequence scoring method that we use in order to more efficiently rerank the generated sequences during beam searching.
         An illustration of the algorithm is provided in my Thesis paper.
 
@@ -23,8 +26,8 @@ class DMM:
 
         self.hist_train = self.pickle_to_dict(self.hist_train_file)
         self.mmc_sim = self.pickle_to_dict(self.mmc_sim_file)
-        self.word_index = self.pickle_to_dict("/home/pkaliosis/cnn_rnn/DMM/word_index.pkl")
-        self.embedding_matrix = np.load("/home/pkaliosis/cnn_rnn/DMM/embedding_matrix.npy")
+        self.word_index = self.pickle_to_dict(word_index_file)
+        self.embedding_matrix = np.load(embedding_matrix_file)
         self.respective_tags = list()
         self.centroid_embeddings, self.gen_tags_dict = dict(), dict()
 
@@ -364,7 +367,6 @@ class DMM:
             if (self.check_for_nan(concepts[0])):
                 concepts = ['C0040405']
             else:
-                print('concepts:', concepts)
                 concepts = concepts[0].split(';')
             for i, c in enumerate(concepts):
                 concepts[i] = self._concepts_dict[c]

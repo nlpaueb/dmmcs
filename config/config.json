@@ -1,0 +1,46 @@
+{
+    "dataset_name": "imageclef",
+    "dataset_images_path": "/path/to/dataset/images/folder/",
+    "dataset_captions_path_train": "/path/to/dataset/training/captions/csv/file",
+    "dataset_captions_path_valid": "/path/to/dataset/validation/captions/csv/file",
+    "dataset_captions_path_test": "/path/to/dataset/test/captions/csv/file",
+    "dataset_concepts_path_test": "/path/to/dataset/test/tags/csv/file",
+    "dataset_concepts_mapper": "/path/to/concept/mapper/csv/file",
+    "hist_file_path": "/path/to/hist/file",
+    "mmc_sim_file_path": "/path/to/mmc_sim/file",
+    "word_index_path": "path/to/word_index/file",
+    "embedding_matrix_path": "path/to/embedding_matrix/file",
+    "RESULTS_PATH": "/path/to/results.csv",
+    "BEST_MODEL_PATH": "/path/to/best-model.pt",
+    "n_gpu": 1,
+    "train_params": {
+                    "do_train": false,
+                    "TRAIN_BATCH_SIZE": 4,
+                    "VALID_BATCH_SIZE": 4,
+                    "TEST_BATCH_SIZE": 1,
+                    "TRAIN_EPOCHS": 5,
+                    "lr": 1e-4,
+                    "instruction": "You are an experienced radiologist. You are being given radiology images along with a short medical diagnosis. Generate a descriptive caption that highlights the location, nature and severity of the abnormality of the radiology image.",
+                    "checkpoint": "Salesforce/instructblip-flan-t5-xl",
+                    "early_stopping_threshold": 3
+                    },
+    "cuda_nr": 7,
+    "seed": 42,
+    "num_workers_train": 4,
+    "num_workers_val": 4,
+    "num_workers_test": 4,
+    "dmmcs_params": {
+                      "do_dmmcs": true,
+                      "alpha": 0.15
+                    },
+    "generation_params":  {
+                            "do_sample": false,
+                            "num_beams": 5,
+                            "max_length": 120,
+                            "min_length": 5
+                          },
+    "logging":  {
+                  "print_on_screen": true
+                 }
+  }
+  
