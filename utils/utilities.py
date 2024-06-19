@@ -88,3 +88,20 @@ def set_logger(log_path, file_name, print_on_screen):
         )
         console.setFormatter(formatter)
         logging.getLogger("").addHandler(console)
+
+
+def normalize_dmm(value):
+    xmin = 0
+    xmax = 1.5
+
+    norm = ((value - xmin) / (xmax-xmin))
+
+    return norm
+
+  def normalize_lm(tensor_):
+    xmin = 2
+    xmax = 22
+
+    norm = ((tensor_ - xmin) / (xmax-xmin))
+
+    return norm

@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 
 class DMM:
 
-    def __init__(self, hist_train_file:str, mmc_sim_file:str, word_index_file:str, embedding_matrix_file:str):
+    def __init__(self, mmc_sim_file:str, word_index_file:str, embedding_matrix_file:str):
         """ The DMM sequence scoring method that we use in order to more efficiently rerank the generated sequences during beam searching.
         An illustration of the algorithm is provided in my Thesis paper.
 
@@ -21,10 +21,8 @@ class DMM:
             mmc_sim_file (str): The name of the pickle file that contains the median maximum cosine similarity value for each tag (based on calculations on the training dataset).
         """
 
-        self.hist_train_file = hist_train_file
         self.mmc_sim_file = mmc_sim_file
 
-        self.hist_train = self.pickle_to_dict(self.hist_train_file)
         self.mmc_sim = self.pickle_to_dict(self.mmc_sim_file)
         self.word_index = self.pickle_to_dict(word_index_file)
         self.embedding_matrix = np.load(embedding_matrix_file)
@@ -57,8 +55,6 @@ class DMM:
 
     def pickle_to_dict(self, file):
 
-        # the hist_train pkl file will essentially contain the train histograms for each tag
-        # it is calculated as: for each caption that comprises the tag, retrieve the max cosine similarity between the tag and the caption's words!
         # save dictionary to pickle file
         file_to_read = open(file, "rb")
         loaded_hist = pickle.load(file_to_read)
@@ -90,27 +86,21 @@ class DMM:
     def get_concept_word_embeddings(self, _concepts:list, dims):
 
         concepts_embeddings = list()
+
         if dims == 2:
-            for i, clist in enumerate(_concepts):
-                concepts_embeddings.append([])
+
+            concepts_embeddings = [[] for _ in _concepts]
+
             for c in clist:
-                c = c.replace('-', ' ')
-                c = c.replace('.', ' ')
-                c = c.replace(':', ' ')
-                c = c.replace('[', ' ')
-                c = c.replace(']', ' ')
-                c = c.replace('(', ' ')
-                c = c.replace(')', ' ')
-                c = c.replace('=', ' ')
-                c = c.replace('/', ' ')
+
+                for char in '-.:[]()=/':
+                    c = c.replace(char, ' ')
 
                 if ((len(c.split(' ')) == 1)):
                     # if tag is only one word --> word_embedding(tag)
-                    if c.lower() in self.word_index:
-                        #print(self.embedding_matrix[self.word_index[c.lower()]])
-                        concepts_embeddings[i].append(self.embedding_matrix[self.word_index[c.lower()]])
-                    else:
-                        concepts_embeddings[i].append(np.zeros(300))
+                    concepts_embeddings[i].append(
+                        self.embedding_matrix[self.word_index[c.lower()]] if c.lower() in self.word_index else np.zeros(300)
+                    )
                 else:
                     # else if tag is more than one word --> centroid of words embeddings of each tag subword
                     if c not in self.centroid_embeddings.keys():
@@ -126,15 +116,9 @@ class DMM:
 
                 key = c
 
-                c = c.replace('-', ' ')
-                c = c.replace('.', ' ')
-                c = c.replace(':', ' ')
-                c = c.replace('[', ' ')
-                c = c.replace(']', ' ')
-                c = c.replace('(', ' ')
-                c = c.replace(')', ' ')
-                c = c.replace('=', ' ')
-                c = c.replace('/', ' ')
+                for char in ['-', '.', ':', '[', ']', '(', ')', '=', '/']:
+                    c = c.replace(char, ' ')
+
 
                 if ((len(c.split(' ')) == 1)):
                     if c.lower() in self.word_index:
@@ -144,9 +128,6 @@ class DMM:
                         #not found in word index!
                         concepts_embeddings.append(np.zeros(300))
                 else:
-                    # else if tag is more than one word --> centroid of words embeddings of each tag subword
-                    #concepts_embeddings.append(self.text_centroid(c, self.embedding_matrix, self.word_index))
-                    #self.respective_tags.append(key)
                     if c not in self.centroid_embeddings.keys():
                         centroid_emb = self.text_centroid(c, self.embedding_matrix, self.word_index)
                         concepts_embeddings.append(centroid_emb)
@@ -165,25 +146,18 @@ class DMM:
         captions_embeddings = list()
 
         if dims == 2:
-            for i, clist in enumerate(_captions):
-                captions_embeddings.append([])
+            captions_embeddings = [[] for _ in _captions]
             for c in clist.split(' '):
-                c = c.replace('-', ' ')
-                c = c.replace('.', ' ')
-                c = c.replace(':', ' ')
-                c = c.replace('[', ' ')
-                c = c.replace(']', ' ')
-                c = c.replace('(', ' ')
-                c = c.replace(')', ' ')
-                c = c.replace('=', ' ')
-                c = c.replace('/', ' ')
+
+                for char in '-.:[]()=/':
+                    c = c.replace(char, ' ')
+
 
 
                 if ((len(c.split(' ')) == 1)):
-                    if c.lower() in self.word_index:
-                        captions_embeddings[i].append(self.embedding_matrix[self.word_index[c.lower()]])
-                    else:
-                        captions_embeddings[i].append(np.zeros(300))
+                    captions_embeddings[i].append(
+                        self.embedding_matrix[self.word_index[c.lower()]] if c.lower() in self.word_index else np.zeros(300)
+                    )
                 elif ((len(c.split()) > 1) and (len(self.text_centroid(c, self.embedding_matrix, self.word_index)) > 0)):
                     captions_embeddings[i].append(self.text_centroid(c, self.embedding_matrix, self.word_index))
                 else:
@@ -191,25 +165,16 @@ class DMM:
 
         elif dims == 1:
             for i, c in enumerate(_captions):
-                c = c.replace('-', ' ')
-                c = c.replace('.', ' ')
-                c = c.replace(':', ' ')
-                c = c.replace('[', ' ')
-                c = c.replace(']', ' ')
-                c = c.replace('(', ' ')
-                c = c.replace(')', ' ')
-                c = c.replace('=', ' ')
-                c = c.replace('/', ' ')
+
+                for char in ['-', '.', ':', '[', ']', '(', ')', '=', '/']:
+                    c = c.replace(char, ' ')
 
                 caption_centroid = self.text_centroid(c, self.embedding_matrix, self.word_index)
 
                 if ((len(c.split(' ')) == 1)):
-                    #print('c:', c)
-                    #print('word index:', self.word_index[c.lower()])
-                    if c.lower() in self.word_index:
-                        captions_embeddings.append(self.embedding_matrix[self.word_index[c.lower()]])
-                    else:
-                        captions_embeddings.append(np.zeros(300))
+                    captions_embeddings.append(
+                        self.embedding_matrix[self.word_index[c.lower()]] if c.lower() in self.word_index else np.zeros(300)
+                    )
                 elif ((len(c.split()) > 1) and (len(caption_centroid) > 0)):
                     captions_embeddings.append(caption_centroid)
                 else:
@@ -228,43 +193,19 @@ class DMM:
         for i, tags_i in enumerate(concepts):
             similarities.append([])
             for k in range(len(captions_embeds)):
-                if flag:
-                    similarities[i].append(self.cosine_sim(concepts_embeds, captions_embeds[k]))
-                else:
-                    similarities[i].append(self.cosine_sim(concepts_embeds[i], captions_embeds[k]))
+                similarities[i].append(
+                    self.cosine_sim(concepts_embeds if flag else concepts_embeds[i], captions_embeds[k])
+                )
 
         return similarities
 
-
-    def init_hist(self, concepts):
-        # intitialize histogram
-        gen_tags_dict = dict()
-
-        for c in concepts:
-            tags = c.split(';')
-
-        for t in tags:
-            if t not in gen_tags_dict.keys():
-                gen_tags_dict[t] = list()
-
-        return gen_tags_dict
-
     def cosine_sim(self, A, B):
+
         # compute cosine similarity
-
-        norm_a = norm(A)
-        norm_b = norm(B)
-
-        cosine = np.dot(A,B)/(norm_a*norm_b)
-        return cosine
+        return np.dot(A,B)/(norm(A)*norm(B))
 
     
     def compute_hist(self, concepts_embeddings, captions_embeddings, gen_tags_dict, concepts):
-        # iterate through the dataset captions
-        #for i in tqdm(range(len(captions_embeddings))):
-            #for j in tqdm(range(len(concepts_embeddings))):
-            # for each caption compute the cosine similarity between each tag and each caption word
-            # ie. if #tags = 2 and len(caption)=10, then a matrix of size (2, 10) is returned
         sims = self.compute_sims(concepts_embeddings, captions_embeddings, concepts, False)
 
         # iterate through the sims vector
@@ -307,28 +248,19 @@ class DMM:
 
         cos_t[0] = [x for x in cos_t[0] if str(x) != 'nan']
 
-        #max_cos_t = np.mean(sorted(cos_t[0], reverse=True)[:10])
         max_cos_t = np.max(cos_t[0])
 
-        if concept in self.mmc_sim.keys():
-            max_cos_c = self.mmc_sim[concept][0]
-        else:
-            max_cos_c = 0.5
+        max_cos_c = self.mmc_sim.get(concept, [0.5])[0]
 
         dmm = (max_cos_t - max_cos_c) ** 2
         return dmm
 
     def check_for_nan(self, t):
-        if torch.is_tensor(t):
-            return True
-        else:
-            if t == '':
-                return True
-            else:
-                return False
 
-    
-    def dmm_handler(self, caption, concepts, calc_dmm_loss=True):
+        return torch.is_tensor(t) or t == ''
+
+
+    def dmm_handler(self, caption, concepts):
         """For a given caption and each assigned concepts, calculate the dmm loss, as defined in my MSc Thesis.
         
         Args:
@@ -336,50 +268,18 @@ class DMM:
             concepts: A list of the concepts (in text format) that are assigned to the given caption.
         """
 
-        #init_hist = self.init_hist(concepts)
+        concepts = [] if self.check_for_nan(concepts[0]) else concepts[0].split(';')
 
-        if calc_dmm_loss:
+        concepts = [self._concepts_dict[c] for c in concepts]
 
-            if (self.check_for_nan(concepts[0])):
-                concepts = []
-            else:
-                concepts = concepts[0].split(';')
-            for i, c in enumerate(concepts):
-                concepts[i] = self._concepts_dict[c]
+        caption_embeddings = self.get_captions_word_embeddings(caption, dims=1)
+        concept_embeddings = self.get_concept_word_embeddings(concepts, dims=1)
 
-            caption_embeddings = self.get_captions_word_embeddings(caption, dims=1)
-            concept_embeddings = self.get_concept_word_embeddings(concepts, dims=1)
+        dmm_loss_sum = 0
+        for i, c in enumerate(concepts):
+            dmm_loss_sum += self.dmm_loss(caption_embeddings, concept_embeddings[i], concepts[i])
 
-            #self.gen_tags_dict = self.compute_hist(concept_embeddings, caption_embeddings, self.gen_tags_dict, concepts)
-
-            # calculate KL divergence between train histogram and generated histogram
-            #ks_score = self.compute_histogram_divergence(self.hist_train, self.gen_tags_dict)
-
-            dmm_loss_sum = 0
-            for i, c in enumerate(concepts):
-                dmm_loss_sum += self.dmm_loss(caption_embeddings, concept_embeddings[i], concepts[i])
-
-            return dmm_loss_sum
-        
-        else:
-
-            #concepts = concepts.split(';')
-            if (self.check_for_nan(concepts[0])):
-                concepts = ['C0040405']
-            else:
-                concepts = concepts[0].split(';')
-            for i, c in enumerate(concepts):
-                concepts[i] = self._concepts_dict[c]
-
-            caption_embeddings = self.get_captions_word_embeddings(caption, dims=1)
-            concept_embeddings = self.get_concept_word_embeddings(concepts, dims=1)
-
-            self.gen_tags_dict = self.compute_hist(concept_embeddings, caption_embeddings, self.gen_tags_dict, concepts)
-
-            # calculate KL divergence between train histogram and generated histogram
-            ks_score = self.compute_histogram_divergence(self.hist_train, self.gen_tags_dict)
-
-            return ks_score
+        return dmm_loss_sum
 
 
 
