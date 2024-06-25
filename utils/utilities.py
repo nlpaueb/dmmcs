@@ -98,7 +98,7 @@ def normalize_dmm(value):
 
     return norm
 
-  def normalize_lm(tensor_):
+def normalize_lm(tensor_):
     xmin = 2
     xmax = 22
 

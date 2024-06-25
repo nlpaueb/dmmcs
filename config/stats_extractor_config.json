@@ -1,0 +1,6 @@
+{
+    "all_data": "/path/to/all_in_one.csv",
+    "dataset_concepts_mapper": "/path/to/concept_mapper.csv",
+    "fasttext_embeddings": "/path/to/fasttext_embeds.npy",
+    "fasttext_vocabulary": "/path/to/fasttext_vocabulary.npy"
+}

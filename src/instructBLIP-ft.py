@@ -165,7 +165,7 @@ class InstructBLIP:
 
                 generated_text = processor.batch_decode(outputs, skip_special_tokens=True)
 
-                if _%500==0:
+                if _ % 500 == 0 and _ != 0:
                     logging.info(f'Completed inference on {str(_)} test instances.')
                     
                 predictions.extend(generated_text)
