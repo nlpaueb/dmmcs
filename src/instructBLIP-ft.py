@@ -150,8 +150,7 @@ class InstructBLIP:
 
                 if self.config["dmmcs_params"]["do_dmmcs"]:
 
-                    dmm = DMM(hist_train_file=hist_file_path,
-                              mmc_sim_file=mmc_sim_file_path,
+                    dmm = DMM(mmc_sim_file=mmc_sim_file_path,
                               word_index_file=self.config["word_index_path"],
                               embedding_matrix_file=self.config["embedding_matrix_path"])
 
@@ -166,7 +165,7 @@ class InstructBLIP:
 
                 generated_text = processor.batch_decode(outputs, skip_special_tokens=True)
 
-                if _%500==0:
+                if _ % 500 == 0 and _ != 0:
                     logging.info(f'Completed inference on {str(_)} test instances.')
                     
                 predictions.extend(generated_text)

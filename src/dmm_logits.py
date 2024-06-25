@@ -2,6 +2,11 @@ from dmm import DMM
 from transformers import LogitsProcessor
 import torch
 
+from utils.utilities import (
+  normalize_dmm,
+  normalize_lm
+)
+
 class DMMLogits(LogitsProcessor):
   def __init__(self, dmm, tags, alpha, tokenizer):
     """
@@ -13,21 +18,7 @@ class DMMLogits(LogitsProcessor):
     self.alpha = alpha
     self.tokenizer = tokenizer
 
-  def normalize_dmm(self, value):
-    xmin = 0
-    xmax = 1.5
-
-    norm = ((value - xmin) / (xmax-xmin))
-
-    return norm
-
-  def normalize_lm(self, tensor_):
-    xmin = 2
-    xmax = 22
-
-    norm = ((tensor_ - xmin) / (xmax-xmin))
-
-    return norm
+  
 
   def __call__(self, input_ids, scores):
     # for every beam (partially generated sentence)
@@ -36,7 +27,7 @@ class DMMLogits(LogitsProcessor):
     for beam_index, (beam_input_ids, beam_scores) in enumerate(zip(input_ids, scores)):
         
         running_caption = self.tokenizer.decode(beam_input_ids)
-        hist_conf.append(self.dmm.dmm_handler(running_caption, self.tags, calc_dmm_loss=False))
+        hist_conf.append(self.dmm.dmm_handler(running_caption, self.tags))
     
     final_scores = list()
     
@@ -44,20 +35,12 @@ class DMMLogits(LogitsProcessor):
 
         running_caption = self.tokenizer.decode(beam_input_ids)
 
-        dmm_loss = self.dmm.dmm_handler(running_caption, self.tags, calc_dmm_loss=True)
+        dmm_loss = self.dmm.dmm_handler(running_caption, self.tags)
 
-        # dmm_component = (self.alpha * (1-hist_conf[beam_index]) * dmm_loss) --> previous form of the dmmcs type
-        dmm_component = (self.alpha * dmm_loss)
+        dmm_component = normalize_dmm((self.alpha * dmm_loss))
 
-        dmm_component = self.normalize_dmm(dmm_component)
+        lm_component = normalize_lm((1-self.alpha) * (-1*beam_scores))
 
-        # snt_component = (1-self.alpha) * hist_conf[beam_index] * (-1*beam_scores) --> previous form of the dmmcs type
-        lm_component = (1-self.alpha) * (-1*beam_scores)
-
-        lm_component = self.normalize_lm(lm_component)
-
-        final_scores_tensor = -1 * (dmm_component + lm_component)
-
-        scores[beam_index] = final_scores_tensor
+        scores[beam_index] = -1 * (dmm_component + lm_component)
     
     return scores

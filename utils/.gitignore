@@ -1,0 +1,3 @@
+# Ignore all .pkl and .npy files
+*.pkl
+*.npy
