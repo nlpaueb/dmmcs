@@ -66,6 +66,10 @@ Please make sure to adjust the ```config/config.json``` args file to your own lo
 
 Set the ```do_dmmcs``` option equal to ```True``` in order to use the dmmcs guided-decoding mechanism during inference instead of the vanilla beam search.
 
+## Licence
+
+This repository is licensed under the MIT license. See [LICENSE](https://github.com/nlpaueb/dmmcs/blob/main/LICENSE) for more details.
+
 
 ## Citation
 
