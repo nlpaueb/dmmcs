@@ -1,4 +1,4 @@
-# DMMCS: A data-driven guided decoding mechanism for Diagnostic Captioning
+# DMMCS: A Data-driven Guided Decoding Mechanism for Diagnostic Captioning
 Distance from Median Maximum Cosine Similarity *(DMMCS)*
 
 This repository contains the official codebase for DMMCS, our novel data-driven guided decoding algorithm featured in **ACL Findings 2024**. You can find a pre-print of our paper "A data-driven guided decoding mechanism for Diagnostic Captioning" [here](https://arxiv.org/abs/2406.14164). *DMMCS* stands for Distance from Median Maximum Cosine Similarity.
