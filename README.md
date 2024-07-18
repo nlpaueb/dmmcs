@@ -70,6 +70,10 @@ Set the ```do_dmmcs``` option equal to ```True``` in order to use the dmmcs guid
 
 This repository is licensed under the MIT license. See [LICENSE](https://github.com/nlpaueb/dmmcs/blob/main/LICENSE) for more details.
 
+## Contact
+
+For any questions, inquiries or suggestions, please feel free to reach out at `pkaliosis@aueb.gr` and/or `annis@aueb.gr`.
+
 
 ## Citation
 
