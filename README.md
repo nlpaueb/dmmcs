@@ -1,7 +1,7 @@
 # DMMCS: A Data-driven Guided Decoding Mechanism for Diagnostic Captioning
 Distance from Median Maximum Cosine Similarity *(DMMCS)*
 
-This repository contains the official codebase for DMMCS, our novel data-driven guided decoding algorithm featured in **ACL Findings 2024**. You can find a pre-print of our paper "A data-driven guided decoding mechanism for Diagnostic Captioning" [here](https://arxiv.org/abs/2406.14164). *DMMCS* stands for Distance from Median Maximum Cosine Similarity.
+This repository contains the official codebase for DMMCS, our novel data-driven guided decoding algorithm featured in **ACL Findings 2024**. You can find our paper "A data-driven guided decoding mechanism for Diagnostic Captioning" [here](https://aclanthology.org/2024.findings-acl.444/). *DMMCS* stands for Distance from Median Maximum Cosine Similarity.
 
 ## Installation
 
@@ -80,10 +80,22 @@ For any questions, inquiries or suggestions, please feel free to reach out at `p
 If you would like to use our work, please cite us using the following bibtex reference:
 
 ```
-@inproceedings{dmmcs,
-  title={A data-driven guided decoding mechanism for Diagnostic Captioning},
-  author={Panagiotis Kaliosis and John Pavlopoulos and Foivos Charalampakos and Georgios Moschovis and Ion Androutsopoulos},
-  booktitle={The 62nd Annual Meeting of the Association for Computational Linguistics},
-  year={2024},
+@inproceedings{kaliosis-etal-2024-data,
+    title = "A Data-Driven Guided Decoding Mechanism for Diagnostic Captioning",
+    author = "Kaliosis, Panagiotis  and
+      Pavlopoulos, John  and
+      Charalampakos, Foivos  and
+      Moschovis, Georgios  and
+      Androutsopoulos, Ion",
+    editor = "Ku, Lun-Wei  and
+      Martins, Andre  and
+      Srikumar, Vivek",
+    booktitle = "Findings of the Association for Computational Linguistics ACL 2024",
+    month = aug,
+    year = "2024",
+    address = "Bangkok, Thailand and virtual meeting",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2024.findings-acl.444",
+    pages = "7450--7466",
 }
 ```
