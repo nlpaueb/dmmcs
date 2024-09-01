@@ -38,7 +38,7 @@ class DMM:
         self.mmc_sim['Pneumopericardium'] = [0.85]
 
         for i in range(5):
-            to_add = np.array([np.ones(300)])
+            to_add = np.array([np.ones(self.embedding_matrix.shape[1])])
             self.embedding_matrix = np.append(self.embedding_matrix, to_add, axis=0)
 
         new_len = self.embedding_matrix.shape[0]
