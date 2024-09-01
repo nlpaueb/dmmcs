@@ -99,7 +99,7 @@ class DMM:
                 if ((len(c.split(' ')) == 1)):
                     # if tag is only one word --> word_embedding(tag)
                     concepts_embeddings[i].append(
-                        self.embedding_matrix[self.word_index[c.lower()]] if c.lower() in self.word_index else np.zeros(300)
+                        self.embedding_matrix[self.word_index[c.lower()]] if c.lower() in self.word_index else np.zeros(self.embedding_matrix.shape[1])
                     )
                 else:
                     # else if tag is more than one word --> centroid of words embeddings of each tag subword
@@ -126,7 +126,7 @@ class DMM:
                         self.respective_tags.append(key)
                     else:
                         #not found in word index!
-                        concepts_embeddings.append(np.zeros(300))
+                        concepts_embeddings.append(np.zeros(self.embedding_matrix.shape[1]))
                 else:
                     if c not in self.centroid_embeddings.keys():
                         centroid_emb = self.text_centroid(c, self.embedding_matrix, self.word_index)
@@ -156,12 +156,12 @@ class DMM:
 
                 if ((len(c.split(' ')) == 1)):
                     captions_embeddings[i].append(
-                        self.embedding_matrix[self.word_index[c.lower()]] if c.lower() in self.word_index else np.zeros(300)
+                        self.embedding_matrix[self.word_index[c.lower()]] if c.lower() in self.word_index else np.zeros(self.embedding_matrix.shape[1])
                     )
                 elif ((len(c.split()) > 1) and (len(self.text_centroid(c, self.embedding_matrix, self.word_index)) > 0)):
                     captions_embeddings[i].append(self.text_centroid(c, self.embedding_matrix, self.word_index))
                 else:
-                    captions_embeddings[i].append(np.zeros(300))
+                    captions_embeddings[i].append(np.zeros(self.embedding_matrix.shape[1]))
 
         elif dims == 1:
             for i, c in enumerate(_captions):
@@ -173,12 +173,12 @@ class DMM:
 
                 if ((len(c.split(' ')) == 1)):
                     captions_embeddings.append(
-                        self.embedding_matrix[self.word_index[c.lower()]] if c.lower() in self.word_index else np.zeros(300)
+                        self.embedding_matrix[self.word_index[c.lower()]] if c.lower() in self.word_index else np.zeros(self.embedding_matrix.shape[1])
                     )
                 elif ((len(c.split()) > 1) and (len(caption_centroid) > 0)):
                     captions_embeddings.append(caption_centroid)
                 else:
-                    captions_embeddings.append(np.zeros(300))
+                    captions_embeddings.append(np.zeros(self.embedding_matrix.shape[1]))
 
 
         return captions_embeddings
