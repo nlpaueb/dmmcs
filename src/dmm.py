@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 
 class DMM:
 
-    def __init__(self, mmc_sim_file:str, word_index_file:str, embedding_matrix_file:str):
+    def __init__(self, mmc_sim_file:str, word_index_file:str, embedding_matrix_file:str, concepts_file:str):
         """ The DMM sequence scoring method that we use in order to more efficiently rerank the generated sequences during beam searching.
         An illustration of the algorithm is provided in my Thesis paper.
 
@@ -43,7 +43,7 @@ class DMM:
 
         new_len = self.embedding_matrix.shape[0]
 
-        concepts_mapper = pd.read_csv('/home/pkaliosis/cnn_rnn/ImageCLEFmedical_Caption_2023_cui_mapping.csv', sep="\t", header=None, names=['cui', 'concept'])
+        concepts_mapper = pd.read_csv(concepts_file, sep="\t", header=None, names=['cui', 'concept'])
 
         # Build a mapper
         self._concepts_dict = {}
