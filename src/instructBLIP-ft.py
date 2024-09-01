@@ -152,7 +152,8 @@ class InstructBLIP:
 
                     dmm = DMM(mmc_sim_file=mmc_sim_file_path,
                               word_index_file=self.config["word_index_path"],
-                              embedding_matrix_file=self.config["embedding_matrix_path"])
+                              embedding_matrix_file=self.config["embedding_matrix_path"],
+                              concepts_file=self.config["dataset_concepts_mapper"])
 
                     # instantiating a list of LogitsProcessor instances
                     # using our custom ABCLogits class
